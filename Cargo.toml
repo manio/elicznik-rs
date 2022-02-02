@@ -1,7 +1,17 @@
 [package]
 name = "elicznik"
+authors = ['Mariusz Białończyk']
 version = "0.1.0"
 edition = "2021"
+license = 'GPL-2.0'
+description = 'Utility for scraping energy meter data from Tauron eLicznik service and saving to PostgreSQL'
+documentation = 'https://github.com/manio/elicznik-rs'
+readme = 'README.md'
+include = ['/README.md', '/LICENSE', '/Cargo.toml', '/Cargo.lock', '/src/*.rs', 'images/*']
+keywords = ['tauron', 'elicznik', 'scraper', 'postgresql']
+categories = ['command-line-utilities']
+homepage = 'https://github.com/manio/elicznik-rs'
+repository = 'https://github.com/manio/elicznik-rs'
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
