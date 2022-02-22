@@ -1,5 +1,8 @@
 # 💡 elicznik
 
+[![Crates.io](https://img.shields.io/crates/v/elicznik.svg)](https://crates.io/crates/elicznik)
+[![Crates.io](https://img.shields.io/crates/l/elicznik.svg)](https://crates.io/crates/elicznik)
+
 ## About
 A commandline tool for scraping energy meter data from [Tauron eLicznik](https://elicznik.tauron-dystrybucja.pl/) service.
 The data are fetched in the JSON format. It consists of hourly records of energy imported and exported from/to grid.
