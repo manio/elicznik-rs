@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 static URL: &str = "https://logowanie.tauron-dystrybucja.pl/login";
-static CHART_URL: &str = "https://elicznik.tauron-dystrybucja.pl/index/charts";
+static CHART_URL: &str = "https://elicznik.tauron-dystrybucja.pl/energia/do/dane";
 static SERVICE: &str = "https://elicznik.tauron-dystrybucja.pl";
 
 pub struct Scraper {
@@ -25,13 +25,15 @@ impl Scraper {
 
         //chart data parameters
         let mut params = HashMap::new();
-        params.insert("dane[paramType]", "csv");
-        params.insert("dane[trybCSV]", "godzin");
-        params.insert("dane[startDay]", &self.start_date);
+        params.insert("form[from]", "01.12.2022");
+        params.insert("form[to]", "10.01.2023");
         if let Some(date) = &self.end_date {
-            params.insert("dane[endDay]", &date);
+        //    params.insert("form[to]", &date);
         }
-        params.insert("dane[checkOZE]", "on");
+        params.insert("form[type]", "godzin");
+        params.insert("form[consum]", "1");
+        params.insert("form[oze]", "1");
+        params.insert("form[fileType]", "CSV");
 
         //creating client with cookie store
         let client = reqwest::Client::builder().cookie_store(true).build()?;
