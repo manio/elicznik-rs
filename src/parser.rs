@@ -48,7 +48,7 @@ where
 pub fn parse_from_reader<R: BufRead>(
     reader: &mut R,
     print_entries: bool,
-) -> Result<(Vec<Entry>, Vec<Entry>), Box<dyn std::error::Error>> {
+) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
     info!("Loading JSON...");
     let json: Value = serde_json::from_reader(reader)?;
     parse_entries(json, print_entries)
@@ -57,7 +57,7 @@ pub fn parse_from_reader<R: BufRead>(
 pub fn parse_from_string(
     s: String,
     print_entries: bool,
-) -> Result<(Vec<Entry>, Vec<Entry>), Box<dyn std::error::Error>> {
+) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
     info!("Loading JSON...");
     let json: Value = serde_json::from_str(&s)?;
     parse_entries(json, print_entries)
@@ -66,23 +66,18 @@ pub fn parse_from_string(
 fn parse_entries(
     json: Value,
     print_entries: bool,
-) -> Result<(Vec<Entry>, Vec<Entry>), Box<dyn std::error::Error>> {
+) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
     info!("Parsing entries...");
-    let import = &json["dane"]["chart"];
-    let export = &json["dane"]["OZE"];
-    let imported: Vec<Entry> = serde_json::from_value(import.clone())?;
-    let exported: Vec<Entry> = serde_json::from_value(export.clone())?;
+    let json_entries = &json["data"]["allData"];
+    let entries: Vec<Entry> = serde_json::from_value(json_entries.clone())?;
     if print_entries {
-        for item in &imported {
-            info!("[Energy imported]: {:?}", item);
-        }
-        for item in &exported {
-            info!("[Energy exported]: {:?}", item);
+        for item in &entries {
+            info!("[Energy entry]: {:?}", item);
         }
     }
-    if imported.is_empty() && exported.is_empty() {
+    if entries.is_empty() {
         Err("Error: no entries available!")?
     } else {
-        Ok((imported, exported))
+        Ok(entries)
     }
 }
