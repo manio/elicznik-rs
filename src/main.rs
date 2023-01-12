@@ -92,7 +92,7 @@ fn config_read_postgres(conf: Ini) -> Result<Database, Box<dyn std::error::Error
 fn config_read_tauron(
     conf: Ini,
     start_date: String,
-    end_date: Option<String>,
+    end_date: String,
 ) -> Result<Scraper, Box<dyn std::error::Error>> {
     match conf.section(Some("tauron".to_owned())) {
         Some(section) => Ok(Scraper {
@@ -155,11 +155,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or(Local::today().naive_local().pred().pred())
                 .format("%d.%m.%Y")
                 .to_string();
-            match config_read_tauron(
-                conf.clone(),
-                start,
-                args.end.map(|x| x.format("%d.%m.%Y").to_string()),
-            ) {
+            let end = args
+                .end
+                .unwrap_or(Local::today().naive_local())
+                .format("%d.%m.%Y")
+                .to_string();
+            match config_read_tauron(conf.clone(), start, end) {
                 Ok(scraper) => match scraper.get_json_data().await {
                     Ok(tauron_data) => {
                         //save data to output file when needed
