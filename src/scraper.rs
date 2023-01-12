@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 static URL: &str = "https://logowanie.tauron-dystrybucja.pl/login";
-static CHART_URL: &str = "https://elicznik.tauron-dystrybucja.pl/index/charts";
+static ENERGY_URL: &str = "https://elicznik.tauron-dystrybucja.pl/energia/api";
 static SERVICE: &str = "https://elicznik.tauron-dystrybucja.pl";
 
 pub struct Scraper {
@@ -15,7 +15,7 @@ pub struct Scraper {
 }
 
 impl Scraper {
-    pub async fn get_json_data(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn get_json_data(&self) -> Result<(String, String), Box<dyn std::error::Error>> {
         //login parameters
         let mut payload = HashMap::new();
         payload.insert("username", &self.username);
@@ -24,14 +24,10 @@ impl Scraper {
         payload.insert("service", &service);
 
         //chart data parameters
-        let mut params = HashMap::new();
-        params.insert("dane[paramType]", "csv");
-        params.insert("dane[trybCSV]", "godzin");
-        params.insert("dane[startDay]", &self.start_date);
-        if let Some(date) = &self.end_date {
-            params.insert("dane[endDay]", &date);
-        }
-        params.insert("dane[checkOZE]", "on");
+        let mut params: HashMap<&str, &str> = HashMap::new();
+        params.insert("from", &self.start_date);
+        params.insert("to", &self.end_date);
+        params.insert("profile", "full time");
 
         //creating client with cookie store
         let client = reqwest::Client::builder().cookie_store(true).build()?;
@@ -59,19 +55,30 @@ impl Scraper {
             self.name, ms
         );
 
-        info!(
-            "{}: Requesting JSON data, start date: <b><cyan>{}</>, end date: <b><cyan>{:?}</>",
-            self.name, self.start_date, self.end_date
+        let mut imported = String::new();
+        let mut exported = String::new();
+        for type_ in &["consum", "oze"] {
+            info!(
+            "{}: Requesting `{}` JSON data, start date: <b><cyan>{}</>, end date: <b><cyan>{:?}</>",
+            self.name, type_, self.start_date, self.end_date
         );
-        sub_started = Instant::now();
-        let res = client.post(CHART_URL).form(&params).send().await?;
-        let t = res.text().await?;
-        let elapsed = sub_started.elapsed();
-        let ms = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
-        info!(
-            "{}: <black>- - -</> ⏱️ response time: <magenta>{}</> ms",
-            self.name, ms
-        );
+            sub_started = Instant::now();
+            let mut params = params.clone();
+            params.insert("type", type_);
+            let res = client.post(ENERGY_URL).form(&params).send().await?;
+            let t = res.text().await?;
+            match type_ {
+                &"consum" => imported = t,
+                &"oze" => exported = t,
+                _ => (),
+            };
+            let elapsed = sub_started.elapsed();
+            let ms = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
+            info!(
+                "{}: <black>- - -</> ⏱️ response time: <magenta>{}</> ms",
+                self.name, ms
+            );
+        }
 
         let elapsed = started.elapsed();
         let ms = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
@@ -79,6 +86,6 @@ impl Scraper {
             "{}: ⌛ total scraping time: <magenta>{}</> ms",
             self.name, ms
         );
-        Ok(t)
+        Ok((imported, exported))
     }
 }
