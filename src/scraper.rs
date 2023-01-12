@@ -11,7 +11,7 @@ pub struct Scraper {
     pub username: String,
     pub password: String,
     pub start_date: String,
-    pub end_date: Option<String>,
+    pub end_date: String,
 }
 
 impl Scraper {
