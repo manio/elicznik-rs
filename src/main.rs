@@ -151,14 +151,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //obtain the input data
     let entries = match args.input {
-        Some(filename) => match File::open(&filename) {
-            Ok(file) => {
-                info!("💾 Loading data from JSON input file: {:?}", &filename);
-                let mut reader = BufReader::new(file);
-                parser::parse_from_reader(&mut reader, args.print)
+        Some(ref filename) => {
+            let mut imported = Ok(vec![]);
+            let mut exported = Ok(vec![]);
+            for type_ in &["consum", "oze"] {
+                let filename = change_file_name(
+                    filename,
+                    &format!(
+                        "{}_{}",
+                        filename
+                            .file_stem()
+                            .unwrap()
+                            .to_os_string()
+                            .into_string()
+                            .unwrap(),
+                        type_
+                    ),
+                );
+                let res = match File::open(filename.clone()) {
+                    Ok(file) => {
+                        info!(
+                            "💾 Loading `{}` data from JSON input file: {:?}",
+                            type_, &filename
+                        );
+                        let mut reader = BufReader::new(file);
+                        parser::parse_from_reader(&mut reader, args.print)
+                    }
+                    Err(e) => Err(format!("Error loading input file: {}", e).into()),
+                };
+                match type_ {
+                    &"consum" => imported = res,
+                    &"oze" => exported = res,
+                    _ => (),
+                };
             }
-            Err(e) => Err(format!("Error loading input file: {}", e).into()),
-        },
+            if let Err(e) = imported {
+                Err(e)
+            } else if let Err(e) = exported {
+                Err(e)
+            } else {
+                Ok((imported.unwrap(), exported.unwrap()))
+            }
+        }
         None => {
             //get data from Tauron
             let start = args
@@ -173,15 +207,48 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .to_string();
             match config_read_tauron(conf.clone(), start, end) {
                 Ok(scraper) => match scraper.get_json_data().await {
-                    Ok(tauron_data) => {
+                    Ok((tauron_imported, tauron_exported)) => {
                         //save data to output file when needed
-                        if let Some(outfile) = args.output {
-                            info!("💾 Saving JSON data to file: <b><blue>{:?}</>", &outfile);
-                            if let Err(e) = std::fs::write(outfile, &tauron_data) {
-                                error!("Unable to write file: {}", e);
+                        if let Some(ref outfile) = args.output {
+                            for type_ in &["consum", "oze"] {
+                                let outfile = change_file_name(
+                                    outfile,
+                                    &format!(
+                                        "{}_{}",
+                                        outfile
+                                            .file_stem()
+                                            .unwrap()
+                                            .to_os_string()
+                                            .into_string()
+                                            .unwrap(),
+                                        type_
+                                    ),
+                                );
+                                info!(
+                                    "💾 Saving `{}` JSON data to file: <b><blue>{:?}</>",
+                                    type_, &outfile
+                                );
+                                let events_to_save = match type_ {
+                                    &"consum" => Some(&tauron_imported),
+                                    &"oze" => Some(&tauron_exported),
+                                    _ => None,
+                                };
+                                if let Some(ev) = events_to_save {
+                                    if let Err(e) = std::fs::write(outfile, &ev) {
+                                        error!("Unable to write file: {}", e);
+                                    }
+                                }
                             }
                         }
-                        parser::parse_from_string(tauron_data, args.print)
+                        let imported = parser::parse_from_string(tauron_imported, args.print);
+                        let exported = parser::parse_from_string(tauron_exported, args.print);
+                        if let Err(e) = imported {
+                            Err(e)
+                        } else if let Err(e) = exported {
+                            Err(e)
+                        } else {
+                            Ok((imported.unwrap(), exported.unwrap()))
+                        }
                     }
                     Err(e) => Err(format!("Error obtaining <i>tauron</> data: {}", e).into()),
                 },
