@@ -11,6 +11,7 @@ mod scraper;
 
 use crate::database::Database;
 use crate::scraper::Scraper;
+use std::path::{Path, PathBuf};
 
 /// Simple program to fetch and process `Tauron eLicznik` JSON data.
 /// If none arguments are given, it is fetching last two days of data
@@ -110,6 +111,16 @@ fn config_read_tauron(
         }),
         None => Err("missing [tauron] config section")?,
     }
+}
+
+fn change_file_name(path: impl AsRef<Path>, name: &str) -> PathBuf {
+    let path = path.as_ref();
+    let mut result = path.to_owned();
+    result.set_file_name(name);
+    if let Some(ext) = path.extension() {
+        result.set_extension(ext);
+    }
+    result
 }
 
 #[tokio::main]
