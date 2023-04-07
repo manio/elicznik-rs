@@ -15,7 +15,7 @@ pub struct Scraper {
 }
 
 impl Scraper {
-    pub async fn get_json_data(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn get_data(&self) -> Result<String, Box<dyn std::error::Error>> {
         //login parameters
         let mut payload = HashMap::new();
         payload.insert("username", &self.username);
@@ -59,7 +59,7 @@ impl Scraper {
         );
 
         info!(
-            "{}: Requesting JSON data, start date: <b><cyan>{}</>, end date: <b><cyan>{:?}</>",
+            "{}: Requesting CSV data, start date: <b><cyan>{}</>, end date: <b><cyan>{:?}</>",
             self.name, self.start_date, self.end_date
         );
         sub_started = Instant::now();

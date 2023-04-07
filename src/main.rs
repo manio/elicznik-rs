@@ -12,7 +12,7 @@ mod scraper;
 use crate::database::Database;
 use crate::scraper::Scraper;
 
-/// Simple program to fetch and process `Tauron eLicznik` JSON data.
+/// Simple program to fetch and process `Tauron eLicznik` CSV data.
 /// If none arguments are given, it is fetching last two days of data
 /// and updates missing values in the configured PostgreSQL database
 #[derive(Parser, Debug)]
@@ -30,15 +30,15 @@ struct Args {
     #[clap(short, long)]
     debug: bool,
 
-    /// Print all JSON entries
+    /// Print all CSV entries
     #[clap(short, long)]
     print: bool,
 
-    /// Input JSON file to read instead of using `Tauron eLicznik`
+    /// Input CSV file to read instead of using `Tauron eLicznik`
     #[clap(short, long, parse(from_os_str))]
     input: Option<std::path::PathBuf>,
 
-    /// Output JSON file to write output data (database will be also updated, if configured)
+    /// Output CSV file to write output data (database will be also updated, if configured)
     #[clap(short, long, parse(from_os_str))]
     output: Option<std::path::PathBuf>,
 
@@ -142,7 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let entries = match args.input {
         Some(filename) => match File::open(&filename) {
             Ok(file) => {
-                info!("💾 Loading data from JSON input file: {:?}", &filename);
+                info!("💾 Loading data from CSV input file: {:?}", &filename);
                 let mut reader = BufReader::new(file);
                 parser::parse_from_reader(&mut reader, args.print)
             }
@@ -161,11 +161,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .format("%d.%m.%Y")
                 .to_string();
             match config_read_tauron(conf.clone(), start, end) {
-                Ok(scraper) => match scraper.get_json_data().await {
+                Ok(scraper) => match scraper.get_data().await {
                     Ok(tauron_data) => {
                         //save data to output file when needed
                         if let Some(outfile) = args.output {
-                            info!("💾 Saving JSON data to file: <b><blue>{:?}</>", &outfile);
+                            info!("💾 Saving CSV data to file: <b><blue>{:?}</>", &outfile);
                             if let Err(e) = std::fs::write(outfile, &tauron_data) {
                                 error!("Unable to write file: {}", e);
                             }
@@ -184,7 +184,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok((imported, exported)) => {
             if let Ok(mut db) = config_read_postgres(conf) {
                 tokio::task::spawn_blocking(move || {
-                    info!("JSON data parsed correctly");
+                    info!("CSV data parsed correctly");
                     info!("Entries count: <yellow>{}</> for grid import, <yellow>{}</> for grid export", imported.len(), exported.len());
                     info!("🛢️ Trying to store it in the database...");
                     db.insert_data(imported, exported);
