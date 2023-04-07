@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::time::Instant;
 
 static URL: &str = "https://logowanie.tauron-dystrybucja.pl/login";
-static CHART_URL: &str = "https://elicznik.tauron-dystrybucja.pl/index/charts";
+static DATA_URL: &str = "https://elicznik.tauron-dystrybucja.pl/energia/do/dane";
 static SERVICE: &str = "https://elicznik.tauron-dystrybucja.pl";
 
 pub struct Scraper {
@@ -24,14 +24,13 @@ impl Scraper {
         payload.insert("service", &service);
 
         //chart data parameters
-        let mut params = HashMap::new();
-        params.insert("dane[paramType]", "csv");
-        params.insert("dane[trybCSV]", "godzin");
-        params.insert("dane[startDay]", &self.start_date);
-        if let Some(date) = &self.end_date {
-            params.insert("dane[endDay]", &date);
-        }
-        params.insert("dane[checkOZE]", "on");
+        let mut params: HashMap<&str, &str> = HashMap::new();
+        params.insert("form[from]", &self.start_date);
+        params.insert("form[to]", &self.end_date);
+        params.insert("form[type]", "godzin");
+        params.insert("form[consum]", "1");
+        params.insert("form[oze]", "1");
+        params.insert("form[fileType]", "CSV");
 
         //creating client with cookie store
         let client = reqwest::Client::builder().cookie_store(true).build()?;
@@ -64,7 +63,7 @@ impl Scraper {
             self.name, self.start_date, self.end_date
         );
         sub_started = Instant::now();
-        let res = client.post(CHART_URL).form(&params).send().await?;
+        let res = client.post(DATA_URL).form(&params).send().await?;
         let t = res.text().await?;
         let elapsed = sub_started.elapsed();
         let ms = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
