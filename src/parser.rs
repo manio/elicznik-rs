@@ -1,4 +1,5 @@
 use chrono::Timelike;
+use csv::Reader;
 use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
@@ -57,44 +58,23 @@ where
     }
 }
 
-pub fn parse_from_reader<R: BufRead>(
+pub fn parse<R: std::io::Read>(
     reader: &mut R,
     print_entries: bool,
-) -> Result<(Vec<Entry>, Vec<Entry>), Box<dyn std::error::Error>> {
-    info!("Loading JSON...");
-    let json: Value = serde_json::from_reader(reader)?;
-    parse_entries(json, print_entries)
-}
-
-pub fn parse_from_string(
-    s: String,
-    print_entries: bool,
-) -> Result<(Vec<Entry>, Vec<Entry>), Box<dyn std::error::Error>> {
-    info!("Loading JSON...");
-    let json: Value = serde_json::from_str(&s)?;
-    parse_entries(json, print_entries)
-}
-
-fn parse_entries(
-    json: Value,
-    print_entries: bool,
-) -> Result<(Vec<Entry>, Vec<Entry>), Box<dyn std::error::Error>> {
-    info!("Parsing entries...");
-    let import = &json["dane"]["chart"];
-    let export = &json["dane"]["OZE"];
-    let imported: Vec<Entry> = serde_json::from_value(import.clone())?;
-    let exported: Vec<Entry> = serde_json::from_value(export.clone())?;
+) -> Result<Vec<Entry>, Box<dyn std::error::Error>> {
+    info!("Parsing CSV entries...");
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(b';')
+        .from_reader(reader);
+    let entries: Vec<Entry> = rdr.deserialize().flatten().collect();
     if print_entries {
-        for item in &imported {
-            info!("[Energy imported]: {:?}", item);
-        }
-        for item in &exported {
-            info!("[Energy exported]: {:?}", item);
+        for item in &entries {
+            info!("{:?}", item);
         }
     }
-    if imported.is_empty() && exported.is_empty() {
+    if entries.is_empty() {
         Err("Error: no entries available!")?
     } else {
-        Ok((imported, exported))
+        Ok(entries)
     }
 }

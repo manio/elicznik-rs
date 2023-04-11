@@ -144,7 +144,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(file) => {
                 info!("💾 Loading data from CSV input file: {:?}", &filename);
                 let mut reader = BufReader::new(file);
-                parser::parse_from_reader(&mut reader, args.print)
+                parser::parse(&mut reader, args.print)
             }
             Err(e) => Err(format!("Error loading input file: {}", e).into()),
         },
@@ -170,7 +170,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 error!("Unable to write file: {}", e);
                             }
                         }
-                        parser::parse_from_string(tauron_data, args.print)
+                        parser::parse(&mut tauron_data.as_bytes(), args.print)
                     }
                     Err(e) => Err(format!("Error obtaining <i>tauron</> data: {}", e).into()),
                 },
@@ -181,13 +181,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //check parsing status and save to db (and output file when configured)
     match entries {
-        Ok((imported, exported)) => {
+        Ok(entries) => {
             if let Ok(mut db) = config_read_postgres(conf) {
                 tokio::task::spawn_blocking(move || {
                     info!("CSV data parsed correctly");
-                    info!("Entries count: <yellow>{}</> for grid import, <yellow>{}</> for grid export", imported.len(), exported.len());
+                    info!("Entries count: <yellow>{}</>", entries.len());
                     info!("🛢️ Trying to store it in the database...");
-                    db.insert_data(imported, exported);
+                    db.insert_data(entries);
                 })
                 .await
                 .expect("Task panicked");
