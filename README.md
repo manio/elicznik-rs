@@ -5,14 +5,14 @@
 
 ## About
 A commandline tool for scraping energy meter data from [Tauron eLicznik](https://elicznik.tauron-dystrybucja.pl/) service.
-The data are fetched in the JSON format. It consists of hourly records of energy imported and exported from/to grid.
-By default obtained data is stored in the PostgreSQL database, but this tool can also save the data directly to a JSON file.
-It can also load a data from the JSON (instead of using `Tauron`) and then save it in the database.
+The data are fetched in the CSV format. It consists of hourly records of energy imported and exported from/to grid.
+By default obtained data is stored in the PostgreSQL database, but this tool can also save the data directly to a CSV file.
+It can also load a data from the CSV (instead of using `Tauron`) and then save it in the database.
 
 ## Usage
 ```
 elicznik 0.1.0
-Simple program to fetch and process `Tauron eLicznik` JSON data. If none arguments are given, it is
+Simple program to fetch and process `Tauron eLicznik` CSV data. If none arguments are given, it is
 fetching last two days of data and updates missing values in the configured PostgreSQL database
 
 USAGE:
@@ -23,10 +23,10 @@ OPTIONS:
     -d, --debug              Enable debug info
     -e, --end <END>          End date in format: YYYY-MM-DD [default: current date]
     -h, --help               Print help information
-    -i, --input <INPUT>      Input JSON file to read instead of using `Tauron eLicznik`
-    -o, --output <OUTPUT>    Output JSON file to write output data (database will be also updated,
+    -i, --input <INPUT>      Input CSV file to read instead of using `Tauron eLicznik`
+    -o, --output <OUTPUT>    Output CSV file to write output data (database will be also updated,
                              if configured)
-    -p, --print              Print all JSON entries
+    -p, --print              Print all CSV entries
     -s, --start <START>      Start date in format: YYYY-MM-DD [default: two days ago]
     -V, --version            Print version information
 ```
