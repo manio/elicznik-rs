@@ -39,8 +39,10 @@ impl Database {
                 let mut inserted = 0;
                 let mut updated = 0;
                 for e in &entries {
-                    let result = client.query("select * from tauron_add_entry($1::date, $2::smallint, $3::boolean, true, $4::float)",
-                            &[&e.Date, &(e.Hour as i16), &e.Extra, &e.EC]);
+                    let result = client.query(
+                        "select * from tauron_add_entry($1::timestamp, $2::boolean, $3::float)",
+                        &[&e.date_time, &e.imported, &e.kwh_value],
+                    );
                     match result {
                         Ok(rows) => {
                             for row in &rows {
