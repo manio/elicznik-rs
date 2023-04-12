@@ -316,7 +316,6 @@ dependencies = [
  "reqwest",
  "rust-ini",
  "serde",
- "serde_json",
  "simplelog",
  "tokio",
 ]
