@@ -16,7 +16,7 @@ pub struct Database {
 }
 
 impl Database {
-    pub fn insert_data(&mut self, imported: Vec<Entry>, exported: Vec<Entry>) {
+    pub fn insert_data(&mut self, entries: Vec<Entry>) {
         let mut builder =
             SslConnector::builder(SslMethod::tls()).expect("SslConnector::builder error");
         builder.set_verify(SslVerifyMode::NONE); //allow self-signed certificates
@@ -38,9 +38,11 @@ impl Database {
 
                 let mut inserted = 0;
                 let mut updated = 0;
-                for e in &imported {
-                    let result = client.query("select * from tauron_add_entry($1::date, $2::smallint, $3::boolean, true, $4::float)",
-                            &[&e.Date, &(e.Hour as i16), &e.Extra, &e.EC]);
+                for e in &entries {
+                    let result = client.query(
+                        "select * from tauron_add_entry($1::timestamp, $2::boolean, $3::float)",
+                        &[&e.date_time, &e.imported, &e.kwh_value],
+                    );
                     match result {
                         Ok(rows) => {
                             for row in &rows {
@@ -56,32 +58,8 @@ impl Database {
                     }
                 }
                 info!(
-                    "{}: Grid import entries: <yellow>{}</> processed <black>=></> <yellow>{}</> inserted, <yellow>{}</> updated",
-                    self.name, imported.len(), inserted, updated
-                );
-
-                inserted = 0;
-                updated = 0;
-                for e in &exported {
-                    let result = client.query("select * from tauron_add_entry($1::date, $2::smallint, $3::boolean, false, $4::float)",
-                            &[&e.Date, &(e.Hour as i16), &e.Extra, &e.EC]);
-                    match result {
-                        Ok(rows) => {
-                            for row in &rows {
-                                updated =
-                                    updated + row.try_get::<_, i32>("updated").unwrap_or_default();
-                                inserted = inserted
-                                    + row.try_get::<_, i32>("inserted").unwrap_or_default();
-                            }
-                        }
-                        Err(e) => {
-                            error!("{}: Problem executing query: {:?}", self.name, e);
-                        }
-                    }
-                }
-                info!(
-                    "{}: Grid export entries: <yellow>{}</> processed <black>=></> <yellow>{}</> inserted, <yellow>{}</> updated",
-                    self.name, exported.len(), inserted, updated
+                    "{}: Grid entries: <yellow>{}</> processed <black>=></> <yellow>{}</> inserted, <yellow>{}</> updated",
+                    self.name, entries.len(), inserted, updated
                 );
 
                 let elapsed = started.elapsed();

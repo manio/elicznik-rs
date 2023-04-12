@@ -11,9 +11,8 @@ mod scraper;
 
 use crate::database::Database;
 use crate::scraper::Scraper;
-use std::path::{Path, PathBuf};
 
-/// Simple program to fetch and process `Tauron eLicznik` JSON data.
+/// Simple program to fetch and process `Tauron eLicznik` CSV data.
 /// If none arguments are given, it is fetching last two days of data
 /// and updates missing values in the configured PostgreSQL database
 #[derive(Parser, Debug)]
@@ -31,15 +30,15 @@ struct Args {
     #[clap(short, long)]
     debug: bool,
 
-    /// Print all JSON entries
+    /// Print all CSV entries
     #[clap(short, long)]
     print: bool,
 
-    /// Input JSON file to read instead of using `Tauron eLicznik`
+    /// Input CSV file to read instead of using `Tauron eLicznik`
     #[clap(short, long, parse(from_os_str))]
     input: Option<std::path::PathBuf>,
 
-    /// Output JSON file to write output data (database will be also updated, if configured)
+    /// Output CSV file to write output data (database will be also updated, if configured)
     #[clap(short, long, parse(from_os_str))]
     output: Option<std::path::PathBuf>,
 
@@ -113,16 +112,6 @@ fn config_read_tauron(
     }
 }
 
-fn change_file_name(path: impl AsRef<Path>, name: &str) -> PathBuf {
-    let path = path.as_ref();
-    let mut result = path.to_owned();
-    result.set_file_name(name);
-    if let Some(ext) = path.extension() {
-        result.set_extension(ext);
-    }
-    result
-}
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
@@ -151,48 +140,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //obtain the input data
     let entries = match args.input {
-        Some(ref filename) => {
-            let mut imported = Ok(vec![]);
-            let mut exported = Ok(vec![]);
-            for type_ in &["consum", "oze"] {
-                let filename = change_file_name(
-                    filename,
-                    &format!(
-                        "{}_{}",
-                        filename
-                            .file_stem()
-                            .unwrap()
-                            .to_os_string()
-                            .into_string()
-                            .unwrap(),
-                        type_
-                    ),
-                );
-                let res = match File::open(filename.clone()) {
-                    Ok(file) => {
-                        info!(
-                            "💾 Loading `{}` data from JSON input file: {:?}",
-                            type_, &filename
-                        );
-                        let mut reader = BufReader::new(file);
-                        parser::parse_from_reader(&mut reader, args.print)
-                    }
-                    Err(e) => Err(format!("Error loading input file: {}", e).into()),
-                };
-                match type_ {
-                    &"consum" => imported = res,
-                    &"oze" => exported = res,
-                    _ => (),
-                };
+        Some(filename) => match File::open(&filename) {
+            Ok(file) => {
+                info!("💾 Loading data from CSV input file: {:?}", &filename);
+                let mut reader = BufReader::new(file);
+                parser::parse(&mut reader, args.print)
             }
-            if let Err(e) = imported {
-                Err(e)
-            } else if let Err(e) = exported {
-                Err(e)
-            } else {
-                Ok((imported.unwrap(), exported.unwrap()))
-            }
-        }
+            Err(e) => Err(format!("Error loading input file: {}", e).into()),
+        },
         None => {
             //get data from Tauron
             let start = args
@@ -206,49 +161,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .format("%d.%m.%Y")
                 .to_string();
             match config_read_tauron(conf.clone(), start, end) {
-                Ok(scraper) => match scraper.get_json_data().await {
-                    Ok((tauron_imported, tauron_exported)) => {
+                Ok(scraper) => match scraper.get_data().await {
+                    Ok(tauron_data) => {
                         //save data to output file when needed
-                        if let Some(ref outfile) = args.output {
-                            for type_ in &["consum", "oze"] {
-                                let outfile = change_file_name(
-                                    outfile,
-                                    &format!(
-                                        "{}_{}",
-                                        outfile
-                                            .file_stem()
-                                            .unwrap()
-                                            .to_os_string()
-                                            .into_string()
-                                            .unwrap(),
-                                        type_
-                                    ),
-                                );
-                                info!(
-                                    "💾 Saving `{}` JSON data to file: <b><blue>{:?}</>",
-                                    type_, &outfile
-                                );
-                                let events_to_save = match type_ {
-                                    &"consum" => Some(&tauron_imported),
-                                    &"oze" => Some(&tauron_exported),
-                                    _ => None,
-                                };
-                                if let Some(ev) = events_to_save {
-                                    if let Err(e) = std::fs::write(outfile, &ev) {
-                                        error!("Unable to write file: {}", e);
-                                    }
-                                }
+                        if let Some(outfile) = args.output {
+                            info!("💾 Saving CSV data to file: <b><blue>{:?}</>", &outfile);
+                            if let Err(e) = std::fs::write(outfile, &tauron_data) {
+                                error!("Unable to write file: {}", e);
                             }
                         }
-                        let imported = parser::parse_from_string(tauron_imported, args.print);
-                        let exported = parser::parse_from_string(tauron_exported, args.print);
-                        if let Err(e) = imported {
-                            Err(e)
-                        } else if let Err(e) = exported {
-                            Err(e)
-                        } else {
-                            Ok((imported.unwrap(), exported.unwrap()))
-                        }
+                        parser::parse(&mut tauron_data.as_bytes(), args.print)
                     }
                     Err(e) => Err(format!("Error obtaining <i>tauron</> data: {}", e).into()),
                 },
@@ -259,13 +181,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     //check parsing status and save to db (and output file when configured)
     match entries {
-        Ok((imported, exported)) => {
+        Ok(entries) => {
             if let Ok(mut db) = config_read_postgres(conf) {
                 tokio::task::spawn_blocking(move || {
-                    info!("JSON data parsed correctly");
-                    info!("Entries count: <yellow>{}</> for grid import, <yellow>{}</> for grid export", imported.len(), exported.len());
+                    info!("CSV data parsed correctly");
+                    info!("Entries count: <yellow>{}</>", entries.len());
                     info!("🛢️ Trying to store it in the database...");
-                    db.insert_data(imported, exported);
+                    db.insert_data(entries);
                 })
                 .await
                 .expect("Task panicked");
