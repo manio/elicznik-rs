@@ -63,7 +63,8 @@ impl Scraper {
             self.name, self.start_date, self.end_date
         );
         sub_started = Instant::now();
-        let res = client.post(DATA_URL).form(&params).send().await?;
+        let url = reqwest::Url::parse_with_params(DATA_URL, &params)?;
+        let res = client.get(url).send().await?;
         let t = res.text().await?;
         let elapsed = sub_started.elapsed();
         let ms = (elapsed.as_secs() * 1_000) + (elapsed.subsec_nanos() / 1_000_000) as u64;
