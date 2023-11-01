@@ -3,7 +3,27 @@ use serde::de;
 use serde::Deserialize;
 use serde::Deserializer;
 use simplelog::*;
+use std::fmt;
 use std::ops::{Add, Sub};
+
+#[derive(Debug)]
+pub enum EnergyKind {
+    Imported,
+    Exported,
+    BalancedImported,
+    BalancedExported,
+}
+
+impl fmt::Display for EnergyKind {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            EnergyKind::Imported => write!(f, "imported"),
+            EnergyKind::Exported => write!(f, "exported"),
+            EnergyKind::BalancedImported => write!(f, "balanced_imported"),
+            EnergyKind::BalancedExported => write!(f, "balanced_exported"),
+        }
+    }
+}
 
 #[derive(Deserialize, Debug)]
 pub struct Entry {
@@ -11,8 +31,8 @@ pub struct Entry {
     pub date_time: chrono::NaiveDateTime,
     #[serde(rename = " Wartość kWh", deserialize_with = "de_float_from_str")]
     pub kwh_value: f64,
-    #[serde(rename = "Rodzaj", deserialize_with = "de_bool_from_str")]
-    pub imported: bool,
+    #[serde(rename = "Rodzaj", deserialize_with = "de_kind_from_str")]
+    pub kind: EnergyKind,
 }
 
 fn de_datetime_from_str<'de, D>(deserializer: D) -> Result<chrono::NaiveDateTime, D::Error>
@@ -42,15 +62,19 @@ where
     s.replace(',', ".").parse().map_err(de::Error::custom)
 }
 
-fn de_bool_from_str<'de, D>(deserializer: D) -> Result<bool, D::Error>
+fn de_kind_from_str<'de, D>(deserializer: D) -> Result<EnergyKind, D::Error>
 where
     D: Deserializer<'de>,
 {
     let s = <String>::deserialize(deserializer)?;
     match s.as_ref() {
-        "pobór" => Ok(true),
-        "oddanie" => Ok(false),
-        _ => Err(de::Error::custom("Field is not `pobór`/`oddanie`")),
+        "pobór" => Ok(EnergyKind::Imported),
+        "oddanie" => Ok(EnergyKind::Exported),
+        "pobrana po zbilansowaniu" => Ok(EnergyKind::BalancedImported),
+        "oddana po zbilansowaniu" => Ok(EnergyKind::BalancedExported),
+        _ => Err(de::Error::custom(
+            "Field is not `pobór`/`oddanie`/`pobrana po zbilansowaniu`/`oddana po zbilansowaniu`",
+        )),
     }
 }
 

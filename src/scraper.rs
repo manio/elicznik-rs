@@ -30,6 +30,8 @@ impl Scraper {
         params.insert("form[type]", "godzin");
         params.insert("form[energy][consum]", "1");
         params.insert("form[energy][oze]", "1");
+        params.insert("form[energy][netto]", "1");
+        params.insert("form[energy][netto_oze]", "1");
         params.insert("form[fileType]", "CSV");
 
         //creating client with cookie store
