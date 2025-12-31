@@ -40,8 +40,8 @@ impl Database {
                 let mut updated = 0;
                 for e in &entries {
                     let result = client.query(
-                        "select * from tauron_add_entry($1::timestamp, $2::text, $3::float)",
-                        &[&e.date_time, &e.kind.to_string(), &e.kwh_value],
+                        "select * from tauron_add_entry($1::timestamp, $2::text, $3::float, $4::text)",
+                        &[&e.date_time, &e.kind.to_string(), &e.kwh_value, &e.tariff],
                     );
                     match result {
                         Ok(rows) => {

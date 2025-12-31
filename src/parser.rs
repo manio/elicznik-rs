@@ -29,6 +29,8 @@ impl fmt::Display for EnergyKind {
 pub struct Entry {
     #[serde(rename = "Data", deserialize_with = "de_datetime_from_str")]
     pub date_time: chrono::NaiveDateTime,
+    #[serde(rename = " Strefa")]
+    pub tariff: String,
     #[serde(rename = " Wartość kWh", deserialize_with = "de_float_from_str")]
     pub kwh_value: f64,
     #[serde(rename = "Rodzaj", deserialize_with = "de_kind_from_str")]
