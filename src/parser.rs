@@ -31,10 +31,12 @@ pub struct Entry {
     pub date_time: chrono::NaiveDateTime,
     #[serde(rename = " Strefa")]
     pub tariff: String,
-    #[serde(rename = " Wartość kWh", deserialize_with = "de_float_from_str")]
+    #[serde(rename = " Wartość ", deserialize_with = "de_float_from_str")]
     pub kwh_value: f64,
     #[serde(rename = "Rodzaj", deserialize_with = "de_kind_from_str")]
     pub kind: EnergyKind,
+    #[serde(rename = "Status")]
+    pub status: String,
 }
 
 fn de_datetime_from_str<'de, D>(deserializer: D) -> Result<chrono::NaiveDateTime, D::Error>
@@ -70,10 +72,10 @@ where
 {
     let s = <String>::deserialize(deserializer)?;
     match s.as_ref() {
-        "pobór" => Ok(EnergyKind::Imported),
-        "oddanie" => Ok(EnergyKind::Exported),
-        "pobrana po zbilansowaniu" => Ok(EnergyKind::BalancedImported),
-        "oddana po zbilansowaniu" => Ok(EnergyKind::BalancedExported),
+        "pobór [kWh]" => Ok(EnergyKind::Imported),
+        "oddanie [kWh]" => Ok(EnergyKind::Exported),
+        "pobrana po zbilansowaniu [kWh]" => Ok(EnergyKind::BalancedImported),
+        "oddana po zbilansowaniu [kWh]" => Ok(EnergyKind::BalancedExported),
         _ => Err(de::Error::custom(
             "Field is not `pobór`/`oddanie`/`pobrana po zbilansowaniu`/`oddana po zbilansowaniu`",
         )),
