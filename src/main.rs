@@ -1,14 +1,15 @@
 use chrono::Local;
 use clap::Parser;
-use ini::Ini;
 use simplelog::*;
 use std::fs::File;
 use std::io::BufReader;
 
+mod config;
 mod database;
 mod parser;
 mod scraper;
 
+use crate::config::Config;
 use crate::database::Database;
 use crate::scraper::Scraper;
 
@@ -43,7 +44,7 @@ struct Args {
     output: Option<std::path::PathBuf>,
 
     /// Config file path
-    #[clap(short, long, parse(from_os_str), default_value = "/etc/elicznik.conf")]
+    #[clap(short, long, parse(from_os_str), default_value = "/etc/elicznik.toml")]
     config: std::path::PathBuf,
 }
 
@@ -70,46 +71,36 @@ fn logging_init(debug: bool) {
     CombinedLogger::init(loggers).expect("Cannot initialize logging subsystem");
 }
 
-fn config_read_postgres(conf: Ini) -> Result<Database, Box<dyn std::error::Error>> {
-    match conf.section(Some("postgres".to_owned())) {
-        Some(section) => Ok(Database {
-            name: "🦏 postgres".to_string(),
-            host: section.get("host").ok_or("`host` is missing")?.to_string(),
-            dbname: section.get("dbname").ok_or("missing `dbname`")?.to_string(),
-            username: section
-                .get("username")
-                .ok_or("missing `username`")?
-                .to_string(),
-            password: section
-                .get("password")
-                .ok_or("missing `password`")?
-                .to_string(),
-        }),
-        None => Err("missing [postgres] config section")?,
-    }
+fn config_read_postgres(conf: &Config) -> Result<Database, Box<dyn std::error::Error>> {
+    let p = conf
+        .postgres
+        .as_ref()
+        .ok_or("missing [postgres] config section")?;
+    Ok(Database {
+        name: "🦏 postgres".to_string(),
+        host: p.host.clone(),
+        dbname: p.dbname.clone(),
+        username: p.username.clone(),
+        password: p.password.clone(),
+    })
 }
 
 fn config_read_tauron(
-    conf: Ini,
+    conf: &Config,
     start_date: String,
     end_date: String,
 ) -> Result<Scraper, Box<dyn std::error::Error>> {
-    match conf.section(Some("tauron".to_owned())) {
-        Some(section) => Ok(Scraper {
-            name: "💡 Tauron eLicznik".to_string(),
-            username: section
-                .get("username")
-                .ok_or("missing `username`")?
-                .to_string(),
-            password: section
-                .get("password")
-                .ok_or("missing `password`")?
-                .to_string(),
-            start_date,
-            end_date,
-        }),
-        None => Err("missing [tauron] config section")?,
-    }
+    let t = conf
+        .tauron
+        .as_ref()
+        .ok_or("missing [tauron] config section")?;
+    Ok(Scraper {
+        name: "💡 Tauron eLicznik".to_string(),
+        username: t.username.clone(),
+        password: t.password.clone(),
+        start_date,
+        end_date,
+    })
 }
 
 #[tokio::main]
@@ -130,7 +121,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     info!("Using config file: <b><blue>{:?}</>", args.config);
-    let conf = match Ini::load_from_file(args.config) {
+    let conf = match Config::load_from_file(&args.config) {
         Ok(c) => c,
         Err(e) => {
             error!("Cannot open config file: {}", e);
@@ -160,7 +151,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .unwrap_or(Local::today().naive_local())
                 .format("%d.%m.%Y")
                 .to_string();
-            match config_read_tauron(conf.clone(), start, end) {
+            match config_read_tauron(&conf, start, end) {
                 Ok(scraper) => match scraper.get_data().await {
                     Ok(tauron_data) => {
                         //save data to output file when needed
@@ -182,7 +173,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //check parsing status and save to db (and output file when configured)
     match entries {
         Ok(entries) => {
-            if let Ok(mut db) = config_read_postgres(conf) {
+            if let Ok(mut db) = config_read_postgres(&conf) {
                 tokio::task::spawn_blocking(move || {
                     info!("CSV data parsed correctly");
                     info!("Entries count: <yellow>{}</>", entries.len());

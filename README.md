@@ -19,7 +19,7 @@ USAGE:
     elicznik [OPTIONS]
 
 OPTIONS:
-    -c, --config <CONFIG>    Config file path [default: /etc/elicznik.conf]
+    -c, --config <CONFIG>    Config file path [default: /etc/elicznik.toml]
     -d, --debug              Enable debug info
     -e, --end <END>          End date in format: YYYY-MM-DD [default: current date]
     -h, --help               Print help information
@@ -41,17 +41,23 @@ One can always adjust it to one's need by providing `start` and `end` parameters
 
 ## Config file
 If not specifed, the tool is searching for the following config file:<br>
-`/etc/elicznik.conf`<br>
+`/etc/elicznik.toml`<br>
 
-A sample file may have the following contents:<br>
-```
+The file is in [TOML](https://toml.io) format. A sample file may have the following contents:<br>
+```toml
 [tauron]
-username = your_tauron_username
-password = your_password
+username = 'your_tauron_username'
+password = 'your_password'
 
 [postgres]
-host = 192.168.1.1
-dbname = database_name
-username = database_user
-password = database_password
+host = '192.168.1.1'
+dbname = 'database_name'
+username = 'database_user'
+password = 'database_password'
 ```
+
+### Special characters in passwords
+Use TOML *literal strings* (single quotes): nothing inside is interpreted, so `"`, `\`, `#`, `;`, `=` are safe, e.g.
+`password = ':_#^abC"!d.EFGHIjk#L;Mn,;op8'`. If the password contains a `'`, use `'''...'''` or a basic
+string (double quotes) with `\"` and `\\` escaped. Unknown keys and malformed values are reported as errors
+(with line number, never with the offending content).
