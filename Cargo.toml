@@ -26,3 +26,4 @@ openssl = { version = "0.10.*", features = ["vendored"] }
 log = "0.4.1"
 simplelog = { version = "0.11.2", features = ["paris", "ansi_term"] }
 clap = { version = "3.0.13", features = ["derive"] }
+chrono-tz = "0.10.4"
