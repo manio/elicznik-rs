@@ -36,6 +36,7 @@ pub struct Entry {
     #[serde(rename = "Rodzaj", deserialize_with = "de_kind_from_str")]
     pub kind: EnergyKind,
     #[serde(rename = "Status")]
+    #[allow(dead_code)] // deserialized from the CSV, but not used (yet)
     pub status: String,
 }
 

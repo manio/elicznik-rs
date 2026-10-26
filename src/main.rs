@@ -143,12 +143,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             //get data from Tauron
             let start = args
                 .start
-                .unwrap_or(Local::today().naive_local().pred().pred())
+                .unwrap_or(Local::now().date_naive() - chrono::Duration::days(2))
                 .format("%d.%m.%Y")
                 .to_string();
             let end = args
                 .end
-                .unwrap_or(Local::today().naive_local())
+                .unwrap_or(Local::now().date_naive())
                 .format("%d.%m.%Y")
                 .to_string();
             match config_read_tauron(&conf, start, end) {
