@@ -186,7 +186,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         Err(e) => {
             error!("{}", e);
-            return Ok(());
+            //non-zero exit code, so cron/systemd can notice the failure
+            std::process::exit(1);
         }
     }
 
